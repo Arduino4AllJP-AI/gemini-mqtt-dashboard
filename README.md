@@ -96,6 +96,8 @@ gemini-mqtt-dashboard/
 ```
 
 ---
+![image](https://github.com/user-attachments/assets/85cddcf5-4249-4367-b282-087bf2fa1ad6)
+![image](https://github.com/user-attachments/assets/fa03308c-6cfe-46be-a5b6-e2bd27a02803)
 
 ## License
 

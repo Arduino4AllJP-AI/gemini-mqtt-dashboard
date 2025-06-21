@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="{{ url_for('static', filename='brain.png') }}" type="image/x-icon">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Brain</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+  <style>
+    .status-box { padding: 0.75rem; border-radius: 0.5rem; }
+    .green { background: #d4edda; color: #155724; }
+    .red   { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body class="bg-gray-100 p-4 relative">
+
+  <!-- Logo -->
+  <img src="{{ url_for('static', filename='logo.png') }}"
+       alt="Logo"
+       class="fixed top-4 left-4 h-32 w-32 object-contain z-10" />
+
+  <div class="max-w-6xl mx-auto grid grid-cols-2 gap-6">
+
+    <!-- Left: Service Status & AI Chat -->
+    <div class="bg-white p-6 rounded-xl shadow-lg space-y-6">
+      <h1 class="text-2xl font-bold text-center">Service Status & AI Chat</h1>
+
+      <!-- API Key Panel -->
+      <div>
+        <h2 class="font-semibold">Google AI API Key</h2>
+        <div id="apiPanel" class="mt-2"></div>
+      </div>
+
+      <!-- MQTT Broker Panel -->
+      <div>
+        <h2 class="font-semibold">MQTT Broker</h2>
+        <div id="mqttPanel" class="mt-2"></div>
+      </div>
+
+      <hr/>
+
+      <!-- Auto Sentinel -->
+      <div class="flex items-center space-x-2">
+        <input type="checkbox" id="autoSentinel" class="h-4 w-4 text-blue-600" />
+        <label for="autoSentinel" class="font-medium text-gray-700">
+          Auto Sentinel (send every 10s)
+        </label>
+      </div>
+
+      <!-- Chat Controls -->
+      <div class="space-y-4">
+        <textarea id="prompt" placeholder="Ask Gemini…" class="w-full p-3 border rounded"></textarea>
+        <button id="sendBtn" class="w-full bg-blue-600 text-white py-2 rounded">Send to Gemini</button>
+        <button id="exportLogsBtn" class="w-full bg-gray-600 text-white py-2 rounded">Export Logs</button>
+        <textarea id="aiResponse" readonly placeholder="Response…" rows="10"
+                  class="w-full p-3 border rounded bg-gray-50"></textarea>
+      </div>
+    </div>
+
+    <!-- Right: MQTT Explorer–style UI -->
+    <div class="bg-white p-6 rounded-xl shadow-lg space-y-6">
+      <h1 class="text-2xl font-bold">MQTT Explorer-style UI</h1>
+
+      <!-- Subscribe -->
+      <div>
+        <h2 class="font-semibold">Subscribe Topic</h2>
+        <div class="flex space-x-2 mt-2">
+          <input id="subTopic" placeholder="topic/to/subscribe" class="flex-1 p-2 border rounded"/>
+          <button id="btnSubscribe" class="bg-green-600 text-white px-4 rounded">Subscribe</button>
+        </div>
+        <p id="subAck" class="text-sm text-gray-600 mt-1"></p>
+      </div>
+
+      <!-- Incoming Messages -->
+      <div>
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Incoming Messages</h2>
+          <button id="btnClearMsgs" class="text-sm text-red-600 hover:underline">Clear</button>
+        </div>
+        <div id="msgList" class="h-40 overflow-auto p-2 border rounded bg-gray-50 space-y-1"></div>
+      </div>
+
+      <!-- Publish -->
+      <div>
+        <h2 class="font-semibold">Publish</h2>
+        <input id="pubTopic" placeholder="topic/to/publish" class="w-full p-2 border rounded mb-2"/>
+        <textarea id="pubMessage" placeholder="message payload" class="w-full p-2 border rounded mb-2"></textarea>
+        <button id="btnPublish" class="bg-blue-600 text-white w-full py-2 rounded">Publish</button>
+        <p id="pubFeedback" class="text-sm text-gray-600 mt-2"></p>
+
+        <div class="flex items-center space-x-2 mt-4">
+          <input type="checkbox" id="autoPublish" class="h-4 w-4 text-blue-600" />
+          <label for="autoPublish" class="font-medium text-gray-700">
+            Auto Publish (every 1s if topic & message set)
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const socket = io();
+
+    // Refs
+    const apiPanel   = document.getElementById('apiPanel');
+    const mqttPanel  = document.getElementById('mqttPanel');
+    const promptEl   = document.getElementById('prompt');
+    const sendBtn    = document.getElementById('sendBtn');
+    const exportBtn  = document.getElementById('exportLogsBtn');
+    const aiResp     = document.getElementById('aiResponse');
+
+    const subTopic   = document.getElementById('subTopic');
+    const btnSub     = document.getElementById('btnSubscribe');
+    const subAck     = document.getElementById('subAck');
+    const msgList    = document.getElementById('msgList');
+    const btnClear   = document.getElementById('btnClearMsgs');
+    const pubTopic   = document.getElementById('pubTopic');
+    const pubMessage = document.getElementById('pubMessage');
+    const btnPub     = document.getElementById('btnPublish');
+    const autoPubCb  = document.getElementById('autoPublish');
+    const tlsCheckbox = () => document.getElementById('mqtt_tls');
+    let sentinelInterval, publishInterval;
+
+    // Status updates
+    socket.on('status_update', ({ api_key, mqtt }) => {
+      // API Panel
+      apiPanel.innerHTML = '';
+      if (api_key) {
+        apiPanel.innerHTML = '<div class="status-box green">✅ API Key Loaded</div>';
+      } else {
+        apiPanel.innerHTML = `
+          <input type="text" id="apiInput" placeholder="Enter API Key"
+                 class="w-full p-2 border rounded mb-2"/>
+          <button id="saveApiBtn" class="bg-blue-600 text-white py-1 px-3 rounded">
+            Save API Key
+          </button>`;
+        document.getElementById('saveApiBtn').onclick = async () => {
+          const key = document.getElementById('apiInput').value.trim();
+          if (!key) return alert('Enter a key');
+          await fetch('/save_api_key', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({api_key: key})
+          });
+        };
+      }
+
+      // MQTT Panel
+      mqttPanel.innerHTML = '';
+      if (mqtt.status === 'Disconnected') {
+        mqttPanel.innerHTML = `<div class="status-box red">⚠️ MQTT not configured</div>`;
+        ['host','port','user','pass','topic'].forEach(k => {
+          mqttPanel.insertAdjacentHTML('beforeend',
+            `<input id="mqtt_${k}" placeholder="${k}"
+                    class="w-full p-2 border rounded mb-1"/>`);
+        });
+        // TLS checkbox
+        mqttPanel.insertAdjacentHTML('beforeend', `
+          <div class="flex items-center mb-4">
+            <input type="checkbox" id="mqtt_tls" class="h-4 w-4 text-green-600 mr-2"/>
+            <label for="mqtt_tls" class="text-gray-700">Use TLS</label>
+          </div>`);
+        // Save button
+        mqttPanel.insertAdjacentHTML('beforeend',
+          `<button id="saveMqttBtn"
+                   class="bg-green-600 text-white py-2 px-4 rounded">
+             Save MQTT
+           </button>`);
+        document.getElementById('saveMqttBtn').onclick = async () => {
+          const payload = {};
+          ['host','port','user','pass','topic'].forEach(k => {
+            payload[k] = document.getElementById(`mqtt_${k}`).value.trim();
+          });
+          payload.tls = tlsCheckbox().checked;
+          await fetch('/save_mqtt', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+          });
+        };
+      } else {
+        mqttPanel.innerHTML = `<div class="status-box ${mqtt.color}">
+                                 ${mqtt.status}
+                               </div>`;
+      }
+    });
+
+    // Incoming MQTT
+    socket.on('mqtt_message', ({ topic, payload }) => {
+      const now = new Date().toLocaleTimeString();
+      const p   = document.createElement('p');
+      p.textContent = `${now} — ${topic}: ${payload}`;
+      msgList.prepend(p);
+      if (msgList.childElementCount > 20) {
+        msgList.removeChild(msgList.lastChild);
+      }
+    });
+
+    // Clear
+    btnClear.onclick = () => msgList.innerHTML = '';
+
+    // Subscribe
+    btnSub.onclick = () => {
+      const t = subTopic.value.trim();
+      if (t) socket.emit('subscribe', { topic: t });
+    };
+    socket.on('subscribed', ({ topic }) => {
+      subAck.textContent = `Subscribed to “${topic}”`;
+    });
+
+    // Publish
+    const publishMessage = () => {
+      const t = pubTopic.value.trim();
+      const m = pubMessage.value.trim();
+      if (!t || !m) return;
+      socket.emit('publish',{ topic: t, message: m });
+      pubMessage.value = '';
+      document.getElementById('pubFeedback').textContent =
+        `Sent at ${new Date().toLocaleTimeString()}`;
+    };
+    btnPub.onclick = publishMessage;
+    autoPubCb.onchange = e => {
+      if (e.target.checked) {
+        publishMessage();
+        publishInterval = setInterval(publishMessage, 1000);
+      } else {
+        clearInterval(publishInterval);
+      }
+    };
+
+    // AI Chat
+    sendBtn.onclick = async () => {
+      const history = Array.from(msgList.children)
+                           .map(p => p.textContent).join('\n');
+      aiResp.value = '';
+      sendBtn.disabled = true;
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            prompt: promptEl.value.trim(),
+            history
+          })
+        });
+        const d = await res.json();
+        aiResp.value = d.response || (`Error: ${d.error}`);
+        const m = (d.response||'').match(/Command_to_device\s*:(\S+)/);
+        if (m) pubMessage.value = m[1];
+      } catch (e) {
+        aiResp.value = 'Network error: ' + e.message;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    };
+
+    // Auto Sentinel
+    document.getElementById('autoSentinel').onchange = e => {
+      if (e.target.checked) {
+        sendBtn.click();
+        sentinelInterval = setInterval(() => sendBtn.click(), 10000);
+      } else {
+        clearInterval(sentinelInterval);
+      }
+    };
+
+    // Export logs
+    exportBtn.onclick = () => window.location = '/export_log';
+  </script>
+</body>
+</html>

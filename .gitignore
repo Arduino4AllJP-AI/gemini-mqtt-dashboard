@@ -3,4 +3,5 @@ APIKEY.txt
 mqtt_credentials.txt
 memory.txt
 __pycache__
-.pyc
+.pyc"Output/" 
+"Python installer/" 

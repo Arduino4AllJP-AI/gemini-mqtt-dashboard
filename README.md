@@ -1,18 +1,18 @@
 # Gemini MQTT Dashboard
 
-A web‑based monitoring and control console built on Flask, Flask‑SocketIO, and MQTT. Gemini provides a responsive GUI for subscribing to device topics, viewing real‑time telemetry, and sending control commands over MQTT (including TLS‑secured connections).
+A web‑based monitoring and control console built on Flask and Flask‑SocketIO. Gemini provides a responsive GUI for subscribing to device topics, viewing real‑time telemetry, and sending control commands over MQTT (including TLS‑secured connections).
 
 ---
 
 ## Key Features
 
-* **Real‑time Data Streaming** – Updates incoming messages instantly using WebSockets.
-* **TLS/SSL Toggle** – Easily switch between secure (TLS) and anonymous connections via a checkbox.
-* **Credential Management** – Save and overwrite MQTT host, port, user, password, and topic settings through the UI.
-* **Topic Subscription** – Dynamically subscribe to multiple topics without restarting the server.
-* **Command Panel** – Publish custom payloads or preconfigured control commands to any topic.
-* **Logging & History** – View and export session logs, including timestamps and topic details.
-* **Clean, Responsive UI** – Built with Bootstrap; adapts to desktop and mobile screens.
+* **Real‑time Data Streaming** – Instantly updates incoming MQTT messages via WebSockets.
+* **TLS/SSL Toggle** – Enable or disable secure MQTT connections with a single checkbox.
+* **Credential Management** – Save and overwrite MQTT host, port, username, password, and topic settings directly from the UI.
+* **Dynamic Subscriptions** – Subscribe or unsubscribe to multiple topics on the fly without restarting the server.
+* **Command Panel** – Publish custom payloads or choose from predefined control commands to any topic.
+* **Session Logging** – View live logs with timestamps and export session history as a text file.
+* **Responsive Design** – Built with Bootstrap for seamless desktop and mobile use.
 
 ---
 
@@ -20,7 +20,7 @@ A web‑based monitoring and control console built on Flask, Flask‑SocketIO, a
 
 * **Python 3.8+**
 * **pip** (Python package manager)
-* **Git** (to clone the repo)
+* **Git** (to clone or update the repository)
 
 ---
 
@@ -39,86 +39,66 @@ A web‑based monitoring and control console built on Flask, Flask‑SocketIO, a
    pip install -r requirements.txt
    ```
 
-3. **Set up credentials**
+3. **First-time setup**
 
-   * On first launch, you’ll be prompted to enter:
+   * Run: `python app.py`
+   * In the web UI, enter your MQTT connection details:
 
-     * MQTT Host & Port
+     * Host, Port
      * Username & Password (if using TLS)
-     * Default Subscription Topic
-   * These will be saved to `mqtt_credentials.txt` (or `APIKEY.txt` for API key storage).
+     * Default Topic to subscribe
+   * Click **Save**. Your settings will be stored in `mqtt_credentials.txt`.
 
 ---
 
 ## Usage
 
+Run the application:
+
 ```bash
 python app.py
 ```
 
-* Open your browser at `http://127.0.0.1:8050` (or the port you configured).
+* Open your browser to `http://127.0.0.1:8050`.
 * Use the sidebar to:
 
   * Toggle TLS on/off
-  * Update credentials
-  * Subscribe or unsubscribe topics
+  * Update MQTT credentials
+  * Subscribe/unsubscribe topics
   * Publish commands
-* View incoming messages in the live log panel.
+* Watch the **Live Log** panel for incoming and outgoing messages.
 
 ---
 
 ## Configuration Files
 
-* **app.py** – Main Flask + SocketIO application.
-* **templates/index.html** – HTML template for the dashboard.
-* **static/** – Static assets (CSS, JS, icons, images).
-* **mqtt\_credentials.txt** – Stored MQTT connection details.
-* **APIKEY.txt** – Optional file for storing an API key if needed.
-* **requirements.txt** – Pinpointed Python dependencies.
+* **`mqtt_credentials.txt`** – Stores your MQTT host, port, user, password, and topic.
+* **`app.py`** – Main Flask + SocketIO application logic.
+* **`templates/index.html`** – Jinja2 template for the dashboard UI.
+* **`static/`** – Static assets (CSS, JS, images).
+* **`requirements.txt`** – Python package dependencies.
 
 ---
 
 ## Project Structure
 
-```
+```text
 gemini-mqtt-dashboard/
 ├── app.py
 ├── requirements.txt
 ├── README.md
-├── mqtt_credentials.txt  
-├── APIKEY.txt (optional)
+├── mqtt_credentials.txt
 ├── templates/
 │   └── index.html
 └── static/
-    ├── brain.png
-    ├── logo.png
-    └── ...
+    ├── css/
+    ├── js/
+    └── images/
 ```
 
 ---
-![image](https://github.com/user-attachments/assets/85cddcf5-4249-4367-b282-087bf2fa1ad6)
-![image](https://github.com/user-attachments/assets/fa03308c-6cfe-46be-a5b6-e2bd27a02803)
 
 ## License
-
-
-
-gemini-mqtt-dashboard/
-├── app.py
-├── requirements.txt
-├── README.md
-├── mqtt_credentials.txt  
-├── APIKEY.txt (optional)
-├── templates/
-│   └── index.html
-└── static/
-    ├── brain.png
-    ├── logo.png
-    └── ...
-
-License
-
-MIT License
 
 Copyright (c) 2025 Jose Perez
 

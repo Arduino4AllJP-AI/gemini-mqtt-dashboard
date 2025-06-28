@@ -206,7 +206,7 @@ def generate():
         return jsonify({'error':'Nothing to send'}), 400
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         resp  = model.generate_content(full_prompt)
         text  = getattr(resp, 'text', '')
         ts    = datetime.utcnow().isoformat()
